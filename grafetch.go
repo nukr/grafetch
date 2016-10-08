@@ -2,6 +2,7 @@ package grafetch
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -10,8 +11,8 @@ import (
 
 // GraphQLQuery ...
 type GraphQLQuery struct {
-	Query     string      `json:"query"`
-	Variables interface{} `json:"variables"`
+	Query     string `json:"query"`
+	Variables string `json:"variables"`
 }
 
 // Grafetch ...
@@ -22,7 +23,7 @@ type Grafetch struct {
 }
 
 // NewReader ...
-func (g Grafetch) NewReader(i int) io.Reader {
+func (g Grafetch) newReader(i int) io.Reader {
 	bs, _ := json.Marshal(g.Queries[i])
 	return strings.NewReader(string(bs))
 }
@@ -36,7 +37,7 @@ func (g *Grafetch) SetHeader(key, value string) {
 func (g Grafetch) Fetch(data interface{}) error {
 	for i := range g.Queries {
 		client := &http.Client{}
-		req, err := http.NewRequest("POST", g.URL, g.NewReader(i))
+		req, err := http.NewRequest("POST", g.URL, g.newReader(i))
 		if err != nil {
 			return err
 		}
@@ -53,6 +54,9 @@ func (g Grafetch) Fetch(data interface{}) error {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
+		}
+		if resp.StatusCode >= 400 {
+			return errors.New(resp.Status)
 		}
 		json.Unmarshal(body, data)
 	}
